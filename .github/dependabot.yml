@@ -12,3 +12,6 @@ updates:
       time: "08:00"
       timezone: "America/Los_Angeles"
     open-pull-requests-limit: 5
+    allowed_updates:
+      - match:
+        update_type: "security"
