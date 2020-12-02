@@ -8,10 +8,15 @@ updates:
   - package-ecosystem: "npm"
     directory: "/"
     schedule:
-      interval: "weekly"
+      interval: "monthly"
       time: "08:00"
       timezone: "America/Los_Angeles"
     open-pull-requests-limit: 5
-    allowed_updates:
-      - match:
-        update_type: "security"
+
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "daily"
+      time: "08:00"
+      timezone: "America/Los_Angeles"
+    ignore: "all"
