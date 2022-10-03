@@ -3,7 +3,7 @@
 * See LICENSE in the project root for license information.
 */
 import * as _ from 'lodash';
-import * as chalk from 'chalk';
+import chalk from 'chalk';
 import * as childProcess from "child_process";
 import * as defaults from "./defaults";
 import * as path from "path";
@@ -23,11 +23,9 @@ const yo = require("yeoman-generator"); // eslint-disable-line @typescript-eslin
 
 const childProcessExec = promisify(childProcess.exec);
 const excelCustomFunctions = `excel-functions`;
-let isSsoProject = false;
+const isSsoProject = false;
 const javascript = `JavaScript`;
-let language;
-const manifest = 'manifest';
-const sso = 'single-sign-on';
+let language: "ts" | "js";
 const typescript = `TypeScript`;
 
 let usageDataObject: usageData.OfficeAddinUsageData;
@@ -58,46 +56,39 @@ module.exports = class extends yo {
 
     this.option('skip-install', {
       type: Boolean,
-      required: false,
-      desc: 'Skip running `npm install` post scaffolding.'
+      description: 'Skip running `npm install` post scaffolding.'
     });
 
     this.option('js', {
       type: Boolean,
-      required: false,
-      desc: 'Project uses JavaScript instead of TypeScript.'
+      description: 'Project uses JavaScript instead of TypeScript.'
     });
 
     this.option('ts', {
       type: Boolean,
-      required: false,
-      desc: 'Project uses TypeScript instead of JavaScript.'
+      description: 'Project uses TypeScript instead of JavaScript.'
     });
 
     this.option('output', {
       alias: 'o',
       type: String,
-      required: false,
-      desc: 'Project folder name if different from project name.'
+      description: 'Project folder name if different from project name.'
     });
 
     this.option('prerelease', {
       type: String,
-      required: false,
-      desc: 'Use the prerelease version of the project template.'
+      description: 'Use the prerelease version of the project template.'
     });
 
     this.option('test', {
       type: String,
-      required: false,
-      desc: 'Project is created in the context of unit tests.'
+      description: 'Project is created in the context of unit tests.'
     });
 
     this.option('details', {
       alias: 'd',
       type: Boolean,
-      required: false,
-      desc: 'Get more details on Yo Office arguments.'
+      description: 'Get more details on Yo Office arguments.'
     });
   }
 
@@ -147,43 +138,60 @@ module.exports = class extends yo {
         this.options.host = jsonData.getHostDisplayName(this.options.host);
       }
 
-      /* askForProjectType will only be triggered if no project type was specified via command line projectType argument,
-       * and the projectType argument input was indeed valid */
+      const startForHost = (new Date()).getTime();
+      const askHostType = [{
+        name: 'host type',
+        message: 'Which Office client application would you like to support?',
+        type: 'list',
+        default: jsonData.getSupportedHosts()[0],
+        choices: jsonData.getSupportedHosts().map(host => ({ name: host, value: host })),
+        when: (this.options.host == null || this.options.host != null && !jsonData.isValidInput(this.options.host, true /* isHostParam */))
+          && jsonData.getSupportedHosts().length > 1
+      }];
+      const hostType = await this.prompt(askHostType);
+      const endForHost = (new Date()).getTime();
+      const durationForHost = (endForHost - startForHost) / 1000;
+
+      /**Get Project Type Display names based on selected Client */
       const startForProjectType = (new Date()).getTime();
-      const askForProjectType = [
+      const supportedTemplates = jsonData.clientTemplateCollection.get(hostType["host type"]);
+      const askProjectBasedOnClient = [
         {
           name: 'projectType',
           message: 'Choose a project type:',
           type: 'list',
-          default: 'React',
-          choices: jsonData.getProjectTemplateNames().map(template => ({ name: jsonData.getProjectDisplayName(template), value: template })),
+          default: 'React', // jsonData.getProjectDisplayName(supportedTemplates.keys().next().value),
+          choices: (): { name: string, value: string }[] => {
+            const templateArray: { name: string, value: string }[] = [];
+
+            for (const template of supportedTemplates) {
+              templateArray.push({ name: jsonData.getProjectDisplayName(template), value: template })
+            }
+            return templateArray;
+          },
           when: this.options.projectType == null || !jsonData.isValidInput(this.options.projectType, false /* isHostParam */)
         }
       ];
-      const answerForProjectType = await this.prompt(askForProjectType);
+      const answerOnClientProjectType = await this.prompt(askProjectBasedOnClient);
       const endForProjectType = (new Date()).getTime();
       const durationForProjectType = (endForProjectType - startForProjectType) / 1000;
 
-      const projectType = _.toLower(this.options.projectType) || _.toLower(answerForProjectType.projectType);
+      const projectType = _.toLower(this.options.projectType) || _.toLower(answerOnClientProjectType.projectType);
 
-      /* Set isManifestProject to true if Manifest project type selected from prompt or Manifest was specified via the command prompt */
-      if ((answerForProjectType.projectType != null && _.toLower(answerForProjectType.projectType) === manifest)
-        || (this.options.projectType != null && _.toLower(this.options.projectType)) === manifest) {
-        isManifestProject = true;
+      switch (projectType) {
+        case "manifest":
+          isManifestProject = true;
+          break;
+        case "excelCustomFunctions":
+          isExcelFunctionsProject = true;
+          break;
+        case "sso":
+          isSsoProject: true;
+          break;
       }
 
-      /* Set isExcelFunctionsProject to true if ExcelFunctions project type selected from prompt or Excel Functions was specified via the command prompt */
-      if ((answerForProjectType.projectType != null && answerForProjectType.projectType) === excelCustomFunctions
-        || (this.options.projectType != null && _.toLower(this.options.projectType) === excelCustomFunctions)) {
-        isExcelFunctionsProject = true;
-      }
-
-      /* Set isSsoProject to true if SSO project type selected from prompt or Single Sign-On was specified via the command prompt */
-      if ((answerForProjectType.projectType != null && answerForProjectType.projectType) === sso
-        || (this.options.projectType != null && _.toLower(this.options.projectType) === sso)) {
-        isSsoProject = true;
-      }
-
+ 
+      /* Script Type Ask - JavaScript or Typescript */
       const getSupportedScriptTypes = jsonData.getSupportedScriptTypes(projectType);
       const askForScriptType = [
         {
@@ -207,26 +215,10 @@ module.exports = class extends yo {
       }];
       const answerForName = await this.prompt(askForName);
 
-      /* askForHost will be triggered if no project name was specified via the command line Host argument, and the Host argument
-       * input was in fact valid, and the project type is not Excel-Functions */
-      const startForHost = (new Date()).getTime();
-      const askForHost = [{
-        name: 'host',
-        message: 'Which Office client application would you like to support?',
-        type: 'list',
-        default: jsonData.getHostTemplateNames(projectType)[0],
-        choices: jsonData.getHostTemplateNames(projectType).map(host => ({ name: host, value: host })),
-        when: (this.options.host == null || this.options.host != null && !jsonData.isValidInput(this.options.host, true /* isHostParam */))
-          && jsonData.getHostTemplateNames(projectType).length > 1
-      }];
-      const answerForHost = await this.prompt(askForHost);
-      const endForHost = (new Date()).getTime();
-      const durationForHost = (endForHost - startForHost) / 1000;
-
       usageDataObject = new usageData.OfficeAddinUsageData(usageDataOptions);
 
       /* Configure project properties based on user input or answers to prompts */
-      this._configureProject(answerForProjectType, answerForScriptType, answerForHost, answerForName, isManifestProject, isExcelFunctionsProject);
+      this._configureProject(answerOnClientProjectType, answerForScriptType, hostType, answerForName, isManifestProject, isExcelFunctionsProject);
       const projectInfo = {
         Host: [this.project.host, durationForHost],
         ScriptType: [this.project.scriptType],
@@ -243,7 +235,7 @@ module.exports = class extends yo {
   }
 
   writing(): void {
-    const done =  this.async();
+    const done = this.async();
     this._copyProjectFiles()
       .then(() => {
         done();
@@ -284,12 +276,13 @@ module.exports = class extends yo {
     }
   }
 
-  _configureProject(answerForProjectType, answerForScriptType, answerForHost, answerForName, isManifestProject, isExcelFunctionsProject): void {
+  _configureProject(answerForProjectType, answerForScriptType, hostType, answerForName, isManifestProject, isExcelFunctionsProject): void {
     try {
       this.project = {
         folder: this.options.output || answerForName.name || this.options.name,
         name: this.options.name || answerForName.name,
-        host: this.options.host || answerForHost.host,
+        host: this.options.host || hostType["host type"],
+        hostInternalName: this.options.host || hostType["host type"],
         projectType: _.toLower(this.options.projectType) || _.toLower(answerForProjectType.projectType),
         isManifestOnly: isManifestProject,
         isExcelFunctionsProject: isExcelFunctionsProject,
@@ -302,6 +295,7 @@ module.exports = class extends yo {
       }
 
       /* Set language variable */
+
       language = this.project.scriptType === typescript ? 'ts' : 'js';
 
       this.project.projectInternalName = _.kebabCase(this.project.name);
@@ -373,7 +367,7 @@ module.exports = class extends yo {
     this.log(`      ${chalk.green('Congratulations!')} Your add-in has been created! Your next steps:\n`);
     this.log(`      ${stepNumber++}. Go the directory where your project was created:\n`);
     this.log(`         ${chalk.bold('cd ' + projFolder)}\n`);
-    
+
     if (isSsoProject) {
       this.log(`      ${stepNumber++}. Configure your SSO taskpane add-in:\n`);
       this.log(`         ${chalk.bold('npm run configure-sso')}\n`);
@@ -381,7 +375,7 @@ module.exports = class extends yo {
       this.log(`      ${stepNumber++}. Build your Excel Custom Functions taskpane add-in:\n`);
       this.log(`         ${chalk.bold('npm run build')}\n`);
     }
-    
+
     if (!this.project.isManifestOnly) {
       if (this.project.host === "Excel" || this.project.host === "Word" || this.project.host === "Powerpoint" || this.project.host === "Outlook") {
         this.log(`      ${stepNumber++}. Start the local web server and sideload the add-in:\n`);
@@ -399,7 +393,7 @@ module.exports = class extends yo {
     this.log(`         ${chalk.bold('code .')}\n`);
     this.log(`         For more information, visit http://code.visualstudio.com.\n`);
     this.log(`      Please visit https://docs.microsoft.com/office/dev/add-ins for more information about Office Add-ins.\n`);
-    if(this.project.host === "Outlook") {
+    if (this.project.host === "Outlook") {
       this.log(`      Please visit ${defaults.outlookSideloadingSteps} for more information about Outlook sideloading.\n`);
     }
     this.log('----------------------------------------------------------------------------------------------------------\n');

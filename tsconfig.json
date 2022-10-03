@@ -11,10 +11,13 @@
         "noEmitOnError": true,
         "rootDir": "src",
         "outDir": "generators",
+        "esModuleInterop": true,
         "lib": [
             "dom",
             "es2015"
-        ]
+        ],
+        "forceConsistentCasingInFileNames":true,
+        "strict": true
     },
     "exclude": [
         "generators/**",

@@ -43,7 +43,7 @@ export namespace helperMethods {
         }).then(response => {
             return new Promise<void>((resolve, reject) => {
                 response.data.pipe(fs.createWriteStream(zipFile))
-                .on('error', function (err) {
+                .on('error', function (err:Error) {
                     reject(`Unable to download project zip file for "${projectTemplateZipFile}".\n${err}`);
                 })
                 .on('close', async () => {
