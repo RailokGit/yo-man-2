@@ -23,30 +23,6 @@
                     "Project",
                     "Word"]
         },
-        "angular": {
-            "displayname": "Office Add-in Task Pane project using Angular framework",
-            "manifestPath": "manifest.xml",
-            "templates": {
-                "javascript": {
-                    "repository": "https://github.com/OfficeDev/Office-Addin-TaskPane-Angular-JS",
-                    "branch": "yo-office",
-                    "prerelease": "yo-office-prerelease"
-                },
-                "typescript": {
-                    "repository": "https://github.com/OfficeDev/Office-Addin-TaskPane-Angular",
-                    "branch": "yo-office",
-                    "prerelease": "yo-office-prerelease"
-                }
-            },
-            "supportedHosts": [
-                "Excel",
-                "Onenote",
-                "Outlook",
-                "Powerpoint",
-                "Project",
-                "Word"
-            ]
-        },
         "react": {
             "displayname": "Office Add-in Task Pane project using React framework",
             "manifestPath": "manifest.xml",
@@ -71,6 +47,68 @@
                 "Word"
             ]
         },
+        "angular": {
+            "displayname": "Office Add-in Task Pane project using Angular framework",
+            "manifestPath": "manifest.xml",
+            "templates": {
+                "javascript": {
+                    "repository": "https://github.com/OfficeDev/Office-Addin-TaskPane-Angular-JS",
+                    "branch": "yo-office",
+                    "prerelease": "yo-office-prerelease"
+                },
+                "typescript": {
+                    "repository": "https://github.com/OfficeDev/Office-Addin-TaskPane-Angular",
+                    "branch": "yo-office",
+                    "prerelease": "yo-office-prerelease"
+                }
+            },
+            "supportedHosts": [
+                "Excel",
+                "Onenote",
+                "Outlook",
+                "Powerpoint",
+                "Project",
+                "Word"
+            ]
+        },
+        "excel-functions-shared": {
+            "displayname": "Excel Custom Functions using a Shared Runtime",
+            "manifestPath": "manifest.xml",
+            "templates": {
+                "javascript": {
+                    "repository": "https://github.com/OfficeDev/Excel-Custom-Functions-JS",
+                    "branch": "shared-runtime-yo-office",
+                    "prerelease": "shared-runtime-yo-office-prerelease"
+                },
+                "typescript": {
+                    "repository": "https://github.com/OfficeDev/Excel-Custom-Functions",
+                    "branch": "shared-runtime-yo-office",
+                    "prerelease": "shared-runtime-yo-office-prerelease"
+                }
+            },
+            "supportedHosts": [
+                "Excel"
+            ]
+        },
+        "excel-functions": {
+            "displayname": "Excel Custom Functions using a JavaScript-only Runtime",
+            "manifestPath": "manifest.xml",
+            "templates": {
+                "javascript": {
+                    "repository": "https://github.com/OfficeDev/Excel-Custom-Functions-JS",
+                    "branch": "yo-office",
+                    "prerelease": "yo-office-prerelease"
+                },
+                "typescript": {
+                    "repository": "https://github.com/OfficeDev/Excel-Custom-Functions",
+                    "branch": "yo-office",
+                    "prerelease": "yo-office-prerelease"
+                }
+            },
+            "supportedHosts": [
+                "Excel"
+            ]
+        },
         "single-sign-on": {
             "displayname": "Office Add-in Task Pane project supporting single sign-on",
             "manifestPath": "manifest.xml",
@@ -93,6 +131,20 @@
                 "Word"
             ]
         },
+        "unified-manifest": {
+            "displayname": "Outlook Add-in with unified Microsoft 365 manifest (preview)",
+            "manifestPath": "manifest.json",
+            "templates": {
+                "typescript": {
+                    "repository": "https://github.com/OfficeDev/Office-Addin-TaskPane",
+                    "branch": "json-preview-yo-office",
+                    "prerelease": "json-preview-yo-office-prerelease"
+                }
+            },
+            "supportedHosts": [
+                "Outlook"
+            ]
+        },
         "manifest": {
             "displayname": "Office Add-in project containing the manifest only",
             "manifestPath": "manifest.xml",
@@ -108,39 +160,6 @@
                 "Powerpoint",
                 "Project",
                 "Word"
-            ]
-        },
-        "excel-functions": {
-            "displayname": "Excel Custom Functions Add-in project",
-            "manifestPath": "manifest.xml",
-            "templates": {
-                "javascript": {
-                    "repository": "https://github.com/OfficeDev/Excel-Custom-Functions-JS",
-                    "branch": "yo-office",
-                    "prerelease": "yo-office-prerelease"
-                },
-                "typescript": {
-                    "repository": "https://github.com/OfficeDev/Excel-Custom-Functions",
-                    "branch": "yo-office",
-                    "prerelease": "yo-office-prerelease"
-                }
-            },
-            "supportedHosts": [
-                "Excel"
-            ]
-        },
-        "teams-manifest": {
-            "displayname": "Outlook Add-in with Teams Manifest (Developer preview)",
-            "manifestPath": "manifest/manifest.json",
-            "templates": {
-                "typescript": {
-                    "repository": "https://github.com/OfficeDev/Office-Addin-TaskPane",
-                    "branch": "json-yo-office",
-                    "prerelease": "json-yo-office-prerelease"
-                }
-            },
-            "supportedHosts": [
-                "Outlook"
             ]
         }
     },

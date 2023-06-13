@@ -14,7 +14,7 @@ import { promisify } from "util";
 import * as usageData from "office-addin-usage-data";
 import { v4 as uuidv4 } from 'uuid';
 import * as yosay from 'yosay';
-const yo = require("yeoman-generator"); // eslint-disable-line @typescript-eslint/no-var-requires
+import * as yo from "yeoman-generator"; // eslint-disable-line @typescript-eslint/no-var-requires
 
 // Workaround for generator-office breaking change (v4 => v5)
 // If we can figure out how to get the new packageManagerInstallTask to work 
@@ -27,6 +27,7 @@ const isSsoProject = false;
 const javascript = `JavaScript`;
 let language: "ts" | "js";
 const typescript = `TypeScript`;
+let jsonData;
 
 let usageDataObject: usageData.OfficeAddinUsageData;
 const usageDataOptions: usageData.IUsageDataOptions = {
@@ -41,6 +42,9 @@ const usageDataOptions: usageData.IUsageDataOptions = {
 }
 
 module.exports = class extends yo {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  project: any;
+
   /*  Setup the generator */
   constructor(args, opts) {
     super(args, opts);
@@ -102,7 +106,6 @@ module.exports = class extends yo {
     }
     const message = `Welcome to the ${chalk.bold.green('Office Add-in')} generator, by ${chalk.bold.green('@OfficeDev')}! Let\'s create a project together!`;
     this.log(yosay(message));
-    this.project = {};
   }
 
   /* Prompt user for project options */
@@ -129,7 +132,7 @@ module.exports = class extends yo {
         usageDataOptions.usageDataLevel = usageData.readUsageDataLevel(usageDataOptions.groupName);
       }
 
-      const jsonData = new projectsJsonData(this.templatePath());
+      jsonData = new projectsJsonData(this.templatePath());
       let isManifestProject = false;
       let isExcelFunctionsProject = false;
 
@@ -234,12 +237,17 @@ module.exports = class extends yo {
     }
   }
 
+
   writing(): void {
     const done = this.async();
     this._copyProjectFiles()
       .then(() => {
         done();
       })
+
+  async writing(): Promise<void> {
+    await this._copyProjectFiles()
+
       .catch((err) => {
         usageDataObject.reportError(defaults.copyFilesErrorEventName, new Error('Installation Error: ' + err));
         process.exitCode = 1;
@@ -278,15 +286,32 @@ module.exports = class extends yo {
 
   _configureProject(answerForProjectType, answerForScriptType, hostType, answerForName, isManifestProject, isExcelFunctionsProject): void {
     try {
+      const projType = _.toLower(this.options.projectType) || _.toLower(answerForProjectType.projectType)
+
       this.project = {
         folder: this.options.output || answerForName.name || this.options.name,
+        host: answerForHost.host
+          ? answerForHost.host
+          : this.options.host
+          ? this.options.host
+          : jsonData?.getHostTemplateNames(projType)[0],
         name: this.options.name || answerForName.name,
+
         host: this.options.host || hostType["host type"],
         hostInternalName: this.options.host || hostType["host type"],
         projectType: _.toLower(this.options.projectType) || _.toLower(answerForProjectType.projectType),
+
+        projectType: projType,
+        scriptType: answerForScriptType.scriptType
+          ? answerForScriptType.scriptType
+          : this.options.ts
+          ? typescript
+          : this.options.js
+          ? javascript
+          : jsonData?.getSupportedScriptTypes(projType)[0],
+
         isManifestOnly: isManifestProject,
         isExcelFunctionsProject: isExcelFunctionsProject,
-        scriptType: answerForScriptType.scriptType ? answerForScriptType.scriptType : this.options.ts ? typescript : javascript
       };
 
       /* Set folder if to output param  if specified */
@@ -301,16 +326,11 @@ module.exports = class extends yo {
       this.project.projectInternalName = _.kebabCase(this.project.name);
       this.project.projectDisplayName = this.project.name;
       this.project.projectId = uuidv4();
-      if (this.project.projectType === excelCustomFunctions) {
-        this.project.host = 'Excel';
-        this.project.hostInternalName = 'Excel';
-      }
-      else {
-        this.project.hostInternalName = this.project.host;
-      }
+      this.project.hostInternalName = this.project.host;
+
       this.destinationRoot(this.project.folder);
-      process.chdir(this._destinationRoot);
-      this.env.cwd = this._destinationRoot;
+      process.chdir(this.destinationRoot());
+      this.env.cwd = this.destinationRoot();
 
       /* Check to to see if destination folder already exists. If so, we will exit and prompt the user to provide
       a different project name or output folder */
@@ -340,16 +360,15 @@ module.exports = class extends yo {
 
           // modify manifest guid and DisplayName
           await OfficeAddinManifest.modifyManifestFile(`${path.join(this.destinationPath(), jsonData.getManifestPath(this.project.projectType))}`, 'random', `${this.project.name}`);
-
-          return resolve()
         }
         else {
           // Manifest-only project
           const templateFills = Object.assign({}, this.project);
           this.fs.copyTpl(this.templatePath(`hosts/${_.toLower(this.project.hostInternalName)}/manifest.xml`), this.destinationPath('manifest.xml'), templateFills);
           this.fs.copyTpl(this.templatePath(`manifest-only/**`), this.destinationPath(), templateFills);
-          return resolve();
         }
+
+        return resolve()
       }
       catch (err) {
         usageDataObject.reportError(defaults.copyFilesErrorEventName, new Error("File Copy Error: " + err));
@@ -359,7 +378,7 @@ module.exports = class extends yo {
   }
 
   _postInstallHints(): void {
-    const projFolder: string = /\s/.test(this._destinationRoot) ? "\"" + this._destinationRoot + "\"" : this._destinationRoot;
+    const projFolder: string = /\s/.test(this.destinationRoot()) ? "\"" + this.destinationRoot() + "\"" : this.destinationRoot();
     let stepNumber = 1;
 
     /* Next steps and npm commands */
@@ -392,8 +411,13 @@ module.exports = class extends yo {
     this.log(`      ${stepNumber++}. Open the project in VS Code:\n`);
     this.log(`         ${chalk.bold('code .')}\n`);
     this.log(`         For more information, visit http://code.visualstudio.com.\n`);
+
     this.log(`      Please visit https://docs.microsoft.com/office/dev/add-ins for more information about Office Add-ins.\n`);
     if (this.project.host === "Outlook") {
+
+    this.log(`      Please visit https://learn.microsoft.com/office/dev/add-ins for more information about Office Add-ins.\n`);
+    if(this.project.host === "Outlook") {
+
       this.log(`      Please visit ${defaults.outlookSideloadingSteps} for more information about Outlook sideloading.\n`);
     }
     this.log('----------------------------------------------------------------------------------------------------------\n');
@@ -404,12 +428,12 @@ module.exports = class extends yo {
     /* Log to console the type of project being created */
     if (this.project.isManifestOnly) {
       this.log('----------------------------------------------------------------------------------\n');
-      this.log(`      Creating manifest for ${chalk.bold.green(this.project.projectDisplayName)} at ${chalk.bold.magenta(this._destinationRoot)}\n`);
+      this.log(`      Creating manifest for ${chalk.bold.green(this.project.projectDisplayName)} at ${chalk.bold.magenta(this.destinationRoot())}\n`);
       this.log('----------------------------------------------------------------------------------');
     }
     else {
       this.log('\n----------------------------------------------------------------------------------\n');
-      this.log(`      Creating ${chalk.bold.green(this.project.projectDisplayName)} add-in for ${chalk.bold.magenta(_.capitalize(this.project.host))} using ${chalk.bold.yellow(this.project.scriptType)} and ${chalk.bold.green(_.capitalize(this.project.projectType))} at ${chalk.bold.magenta(this._destinationRoot)}\n`);
+      this.log(`      Creating ${chalk.bold.green(this.project.projectDisplayName)} add-in for ${chalk.bold.magenta(_.capitalize(this.project.host))} using ${chalk.bold.yellow(this.project.scriptType)} and ${chalk.bold.green(_.capitalize(this.project.projectType))} at ${chalk.bold.magenta(this.destinationRoot())}\n`);
       this.log('----------------------------------------------------------------------------------');
     }
   }
@@ -419,10 +443,12 @@ module.exports = class extends yo {
     this.log(`NOTE: ${chalk.bgGreen('Arguments')} must be specified in the order below, and ${chalk.bgMagenta('Options')} must follow ${chalk.bgGreen('Arguments')}.\n`);
     this.log(`  ${chalk.bgGreen('projectType')}:Specifies the type of project to create. Valid project types include:`);
     this.log(`    ${chalk.yellow('angular:')}  Creates an Office add-in using Angular framework.`);
-    this.log(`    ${chalk.yellow('excel-functions:')} Creates an Office add-in for Excel custom functions.  Must specify 'Excel' as host parameter.`);
+    this.log(`    ${chalk.yellow('excel-functions-shared:')} Creates an Office add-in for Excel custom functions using a Shared Runtime.`);
+    this.log(`    ${chalk.yellow('excel-functions:')} Creates an Office add-in for Excel custom functions using a JavaScript-only Runtime.`);
     this.log(`    ${chalk.yellow('jquery:')} Creates an Office add-in using Jquery framework.`);
     this.log(`    ${chalk.yellow('manifest:')} Creates an only the manifest file for an Office add-in.`);
     this.log(`    ${chalk.yellow('react:')} Creates an Office add-in using React framework.\n`);
+    this.log(`    ${chalk.yellow('unified-manifest:')} Creates Outlook Add-in with a unified Microsoft 365 manifest (preview).\n`);
     this.log(`  ${chalk.bgGreen('name')}:Specifies the name for the project that will be created.\n`);
     this.log(`  ${chalk.bgGreen('host')}:Specifies the host app in the add-in manifest.`);
     this.log(`    ${chalk.yellow('excel:')}  Creates an Office add-in for Excel. Valid hosts include:`);
@@ -441,8 +467,8 @@ module.exports = class extends yo {
   }
 
   _exitYoOfficeIfProjectFolderExists(): boolean {
-    if (helperMethods.doesProjectFolderExist(this._destinationRoot)) {
-      this.log(`${chalk.bold.red(`\nFolder already exists at ${chalk.bold.green(this._destinationRoot)} and is not empty. To avoid accidentally overwriting any files, please start over and choose a different project name or destination folder via the ${chalk.bold.magenta(`--output`)} parameter`)}\n`);
+    if (helperMethods.doesProjectFolderExist(this.destinationRoot())) {
+      this.log(`${chalk.bold.red(`\nFolder already exists at ${chalk.bold.green(this.destinationRoot())} and is not empty. To avoid accidentally overwriting any files, please start over and choose a different project name or destination folder via the ${chalk.bold.magenta(`--output`)} parameter`)}\n`);
       this._exitProcess();
     }
     return false;
